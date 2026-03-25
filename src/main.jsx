@@ -1,3 +1,9 @@
+// Polyfill for requestIdleCallback (not supported in all Chrome webviews / Electron)
+if (typeof window !== 'undefined' && !window.requestIdleCallback) {
+  window.requestIdleCallback = (cb) => setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 50 }), 1);
+  window.cancelIdleCallback = (id) => clearTimeout(id);
+}
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
