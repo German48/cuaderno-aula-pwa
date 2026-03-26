@@ -38,8 +38,12 @@ export default function DashboardPage() {
     settings?.activeGroupId ? db.sessions.where('groupId').equals(settings.activeGroupId).toArray() : []
   , [settings?.activeGroupId]);
 
-  const group = useLiveQuery(() => db.groups.get(settings?.activeGroupId), [settings?.activeGroupId]);
-  const module = useLiveQuery(() => db.modules.get(settings?.activeModuleId), [settings?.activeModuleId]);
+  const group = useLiveQuery(() =>
+    settings?.activeGroupId ? db.groups.get(settings.activeGroupId) : null
+  , [settings?.activeGroupId]);
+  const module = useLiveQuery(() =>
+    settings?.activeModuleId ? db.modules.get(settings.activeModuleId) : null
+  , [settings?.activeModuleId]);
 
   const totalStudents = students?.length || 0;
   const avgGrade = grades?.length
@@ -133,7 +137,7 @@ export default function DashboardPage() {
             {students.slice(0, 5).map(s => (
               <Link key={s.id} to={`/students/${s.id}`}
                 className="card p-3 flex items-center gap-3 hover:border-indigo-200 transition-colors">
-                <Avatar name={`${s.name} ${s.surname}`} photo={s.photo} size="sm" />
+                <Avatar name={`${s.name} ${s.surname}`} photo={s.photo} size="sm" hoverZoom />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[var(--color-text)] truncate">{s.name} {s.surname}</p>
                   <p className="text-xs text-[var(--color-text-muted)]">#{s.number}</p>

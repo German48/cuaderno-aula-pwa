@@ -1,8 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, updateLastSaved } from '../db';
-import { Moon, Sun, Upload, Download, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Upload, Download, Plus, Trash2, Edit2, FileSpreadsheet } from 'lucide-react';
 import { exportDatabase as exportBackup, importDatabase as importBackup } from '../lib/backup';
+import { exportCsvBundle } from '../lib/csv';
+import { pushAllToSupabase } from '../lib/supabaseSync';
+import { supabaseEnabled } from '../lib/supabase';
 import Modal from '../components/ui/Modal';
 
 export default function SettingsPage() {
@@ -17,14 +20,19 @@ export default function SettingsPage() {
   const [groupForm, setGroupForm] = useState({ name: '', stage: 'Superior', year: 1, evalCount: 3 });
   const [modForm, setModForm] = useState({ code: '', name: '', shortName: '', color: '#4F46E5', examsWeight: 30, projectsWeight: 70, obsWeight: 0 });
   const [tab, setTab] = useState('centro');
+  const [syncingSupabase, setSyncingSupabase] = useState(false);
   const logoRef = useRef();
 
   const applySettings = async (updates) => {
-    await db.settings.update(1, updates);
+    await db.settings.update(1, { ...updates, updatedAt: new Date().toISOString() });
     await updateLastSaved();
   };
 
-  const toggleDark = () => applySettings({ darkMode: !darkMode });
+  const toggleDark = async () => {
+    const nextDark = !darkMode;
+    document.documentElement.classList.toggle('dark', nextDark);
+    await applySettings({ darkMode: nextDark });
+  };
 
   React.useEffect(() => {
     if (settings) setForm(settings);
@@ -32,6 +40,18 @@ export default function SettingsPage() {
 
   const saveSchool = async () => {
     await applySettings(form);
+  };
+
+  const syncNow = async () => {
+    try {
+      setSyncingSupabase(true);
+      await pushAllToSupabase();
+      alert('Sincronización con Supabase completada.');
+    } catch (error) {
+      alert(error?.message || 'No se pudo sincronizar con Supabase.');
+    } finally {
+      setSyncingSupabase(false);
+    }
   };
 
   const handleLogo = e => {
@@ -151,22 +171,20 @@ export default function SettingsPage() {
       {/* Sistema */}
       {tab === 'sistema' && settings && (
         <div className="space-y-4">
-          <div className="card p-4 flex items-center justify-between">
-            <div>
-              <p className="font-medium text-[var(--color-text)]">Tema oscuro</p>
-              <p className="text-sm text-[var(--color-text-muted)]">Activa el modo oscuro</p>
-            </div>
-            <button onClick={toggleDark} className={`relative w-12 h-6 rounded-full transition-colors ${darkMode ? 'bg-primary' : 'bg-slate-300'}`}>
-              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${darkMode ? 'translate-x-7' : 'translate-x-1'}`} />
-            </button>
+          <div className="card p-4">
+            <p className="font-medium text-[var(--color-text)]">Tema visual</p>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">Ahora puedes cambiar entre modo claro y oscuro directamente desde la cabecera de la app.</p>
           </div>
 
           <div className="card p-4 space-y-3">
-            <p className="font-medium text-[var(--color-text)]">Copia de seguridad</p>
+            <p className="font-medium text-[var(--color-text)]">Copia de seguridad y exportación</p>
             <button onClick={exportBackup} className="btn btn-secondary w-full justify-start">
               <Download size={16} /> Exportar datos (JSON)
             </button>
-            <p className="text-xs text-[var(--color-text-muted)]">Descarga todos tus datos como archivo JSON.</p>
+            <button onClick={exportCsvBundle} className="btn btn-secondary w-full justify-start">
+              <FileSpreadsheet size={16} /> Exportar tablas (CSV)
+            </button>
+            <p className="text-xs text-[var(--color-text-muted)]">JSON sirve para copia y restauración completa. CSV sirve para revisar datos en Excel o Sheets.</p>
           </div>
 
           <div className="card p-4 space-y-3">
@@ -178,10 +196,30 @@ export default function SettingsPage() {
             <p className="text-xs text-amber-600">⚠️ Esto reemplazará todos los datos actuales.</p>
           </div>
 
-          <div className="card p-4">
-            <p className="text-xs text-[var(--color-text-muted)]">
-              Última sincronización: {settings.lastSaved ? new Date(settings.lastSaved).toLocaleString('es-ES') : 'Nunca'}
-            </p>
+          <div className="card p-4 space-y-3">
+            <div>
+              <p className="font-medium text-[var(--color-text)]">Sincronización con Supabase</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                {supabaseEnabled
+                  ? 'Supabase está configurado. Puedes guardar todos los datos del aplicativo en la nube.'
+                  : 'Supabase aún no está configurado. Añade VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en tu archivo .env.local.'}
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-border)] p-3 bg-[var(--color-bg)] space-y-2">
+              <p className="text-sm text-[var(--color-text)]"><strong>Estado:</strong> {settings.syncMessage || 'Sin información'}</p>
+              <p className="text-xs text-[var(--color-text-muted)]">Última sincronización remota: {settings.lastSyncedAt ? new Date(settings.lastSyncedAt).toLocaleString('es-ES') : 'Nunca'}</p>
+              <p className="text-xs text-[var(--color-text-muted)]">Último guardado local: {settings.lastSaved ? new Date(settings.lastSaved).toLocaleString('es-ES') : 'Nunca'}</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={syncNow} disabled={!supabaseEnabled || syncingSupabase} className="btn btn-secondary flex-1 justify-start">
+                <Upload size={16} /> {syncingSupabase ? 'Sincronizando…' : 'Sincronizar ahora con Supabase'}
+              </button>
+              {settings.syncStatus === 'error' ? (
+                <button onClick={syncNow} disabled={!supabaseEnabled || syncingSupabase} className="btn btn-danger">
+                  Reintentar
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       )}

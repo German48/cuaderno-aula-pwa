@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, updateLastSaved } from '../db';
@@ -27,6 +27,7 @@ export default function StudentDetailPage() {
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState(null);
   const [activeTab, setActiveTab] = useState('grades');
+  const fileInputRef = useRef(null);
 
   if (!student) return (
     <div className="p-4">
@@ -42,9 +43,27 @@ export default function StudentDetailPage() {
   };
 
   const saveEdit = async () => {
-    await db.students.update(student.id, form);
+    await db.students.update(student.id, { ...form, updatedAt: new Date().toISOString() });
     updateLastSaved();
     setEditMode(false);
+  };
+
+  const handlePhotoSelected = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const photo = reader.result;
+      await db.students.update(student.id, { photo, updatedAt: new Date().toISOString() });
+      await updateLastSaved();
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
+
+  const removePhoto = async () => {
+    await db.students.update(student.id, { photo: null, updatedAt: new Date().toISOString() });
+    await updateLastSaved();
   };
 
   const avgGrade = grades?.length ? (grades.reduce((s, g) => s + g.value, 0) / grades.length).toFixed(2) : '—';
@@ -67,7 +86,9 @@ export default function StudentDetailPage() {
           <ArrowLeft size={20} />
         </button>
         <div className="flex-1 flex items-center gap-3">
-          <Avatar name={`${student.name} ${student.surname}`} photo={student.photo} size="md" />
+          <div className="relative">
+            <Avatar name={`${student.name} ${student.surname}`} photo={student.photo} size="lg" hoverZoom />
+          </div>
           <div>
             <h2 className="font-bold text-[var(--color-text)]">{student.name} {student.surname}</h2>
             <p className="text-xs text-[var(--color-text-muted)]">#{student.number}</p>
@@ -76,6 +97,22 @@ export default function StudentDetailPage() {
         <button onClick={startEdit} className="btn btn-ghost p-1.5">
           <Edit2 size={16} />
         </button>
+      </div>
+
+      {/* Foto */}
+      <div className="px-4 pt-4">
+        <div className="card p-4 flex items-center gap-4">
+          <Avatar name={`${student.name} ${student.surname}`} photo={student.photo} size="xl" hoverZoom />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-[var(--color-text)]">Foto del alumno</p>
+            <p className="text-xs text-[var(--color-text-muted)]">Puedes añadir una imagen y al pasar el cursor sobre los avatares se ampliará para ver mejor la cara.</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelected} />
+            <button className="btn btn-primary text-sm" onClick={() => fileInputRef.current?.click()}>Subir foto</button>
+            {student.photo ? <button className="btn btn-secondary text-sm" onClick={removePhoto}>Quitar foto</button> : null}
+          </div>
+        </div>
       </div>
 
       {/* Stats */}

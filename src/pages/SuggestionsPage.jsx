@@ -13,7 +13,21 @@ export default function SuggestionsPage() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ content: '', category: 'Metodología', moduleId: null, status: 'pending' });
 
-  const save = async () => {
+  const openNew = () => {
+    setForm({ content: '', category: 'Metodología', moduleId: null, status: 'pending' });
+    setEditing({});
+  };
+
+  const openEdit = (suggestion) => {
+    setForm({ content: suggestion.content ?? '', category: suggestion.category ?? 'Metodología', moduleId: suggestion.moduleId ?? null, status: suggestion.status ?? 'pending' });
+    setEditing({ id: suggestion.id });
+  };
+
+  const handleSave = async () => {
+    if (!form.content.trim()) {
+      alert('El contenido de la sugerencia no puede estar vacío.');
+      return;
+    }
     if (editing?.id) {
       await db.suggestions.update(editing.id, form);
     } else {
@@ -29,7 +43,7 @@ export default function SuggestionsPage() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-[var(--color-text)]">Sugerencias</h2>
-        <button onClick={() => { setForm({ content: '', category: 'Metodología', moduleId: null, status: 'pending' }); setEditing({}); }} className="btn btn-primary text-sm"><Plus size={14} /> Nueva</button>
+        <button onClick={openNew} className="btn btn-primary text-sm"><Plus size={14} /> Nueva</button>
       </div>
       {suggestions.length === 0 ? (
         <p className="text-[var(--color-text-muted)]">No hay sugerencias.</p>
@@ -40,17 +54,17 @@ export default function SuggestionsPage() {
             return (
               <div key={s.id} className="card p-4">
                 <div className="flex justify-between items-start gap-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                       <span className={`badge ${st.color}`}>{st.label}</span>
                       <span className="badge bg-slate-100 text-slate-600">{s.category}</span>
                     </div>
                     <p className="text-sm text-[var(--color-text)]">{s.content}</p>
                     <p className="text-xs text-[var(--color-text-muted)] mt-1">{new Date(s.date).toLocaleDateString('es-ES')}</p>
                   </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button onClick={() => { setForm(s); setEditing(s); }} className="btn btn-ghost p-1"><Edit2 size={14} /></button>
-                    <button onClick={() => remove(s.id)} className="btn btn-ghost text-red-500 p-1"><Trash2 size={14} /></button>
+                  <div className="flex gap-1 flex-shrink-0 ml-2">
+                    <button onClick={() => openEdit(s)} className="btn btn-ghost p-1" title="Editar"><Edit2 size={14} /></button>
+                    <button onClick={() => remove(s.id)} className="btn btn-ghost text-red-500 p-1" title="Eliminar"><Trash2 size={14} /></button>
                   </div>
                 </div>
               </div>
@@ -59,20 +73,20 @@ export default function SuggestionsPage() {
         </div>
       )}
       {editing !== null && (
-        <Modal onClose={() => setEditing(null)} title={editing?.id ? 'Editar Sugerencia' : 'Nueva Sugerencia'}>
-          <div className="space-y-3">
-            <textarea className="input" placeholder="Contenido de la sugerencia..." rows={4} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} />
-            <select className="input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
+        <Modal isOpen={true} onClose={() => setEditing(null)} title={editing?.id ? 'Editar Sugerencia' : 'Nueva Sugerencia'}>
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+            <textarea className="input" placeholder="Contenido de la sugerencia... *" rows={4} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} name="suggestion-content" autoFocus />
+            <select className="input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} name="suggestion-category">
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
-            <select className="input" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+            <select className="input" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} name="suggestion-status">
               {Object.entries(STATUSES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
             <div className="flex gap-2 justify-end pt-2">
-              <button onClick={() => setEditing(null)} className="btn btn-secondary">Cancelar</button>
-              <button onClick={save} className="btn btn-primary">Guardar</button>
+              <button type="button" onClick={() => setEditing(null)} className="btn btn-secondary">Cancelar</button>
+              <button type="submit" className="btn btn-primary">Guardar</button>
             </div>
-          </div>
+          </form>
         </Modal>
       )}
     </div>

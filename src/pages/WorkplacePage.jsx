@@ -70,7 +70,7 @@ export default function WorkplacePage() {
             return (
               <div key={s.id} className="card p-4">
                 <div className="flex items-center gap-3 mb-3">
-                  <Avatar name={`${s.name} ${s.surname}`} size={40} />
+                  <Avatar name={`${s.name} ${s.surname}`} photo={s.photo} size="md" hoverZoom />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-[var(--color-text)] truncate">{s.name} {s.surname}</p>
                     <p className="text-xs text-[var(--color-text-muted)]">{total}h registradas · {pct}%</p>

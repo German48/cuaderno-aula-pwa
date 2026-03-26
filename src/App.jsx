@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { seedDatabase } from './db';
+import { db, seedDatabase } from './db';
 import AppShell from './components/layout/AppShell';
 import DashboardPage from './pages/DashboardPage';
 import StudentsPage from './pages/StudentsPage';
@@ -20,8 +20,34 @@ function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    seedDatabase().then(() => setReady(true));
+    seedDatabase().then(async () => {
+      const settings = await db.settings.get(1);
+      document.documentElement.classList.toggle('dark', !!settings?.darkMode);
+      setReady(true);
+    });
   }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+
+    const applyTheme = async () => {
+      const settings = await db.settings.get(1);
+      document.documentElement.classList.toggle('dark', !!settings?.darkMode);
+    };
+
+    applyTheme();
+    const onVisibility = () => {
+      if (!document.hidden) applyTheme();
+    };
+
+    window.addEventListener('focus', applyTheme);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      window.removeEventListener('focus', applyTheme);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [ready]);
 
   if (!ready) {
     return (

@@ -22,8 +22,12 @@ export default function GradesPage() {
     settings?.activeModuleId ? db.learningOutcomes.where('moduleId').equals(settings.activeModuleId).toArray() : []
   , [settings?.activeModuleId]);
   const allGrades = useLiveQuery(() => db.grades.toArray(), []);
-  const module = useLiveQuery(() => db.modules.get(settings?.activeModuleId), [settings?.activeModuleId]);
-  const group = useLiveQuery(() => db.groups.get(settings?.activeGroupId), [settings?.activeGroupId]);
+  const module = useLiveQuery(() =>
+    settings?.activeModuleId ? db.modules.get(settings.activeModuleId) : null
+  , [settings?.activeModuleId]);
+  const group = useLiveQuery(() =>
+    settings?.activeGroupId ? db.groups.get(settings.activeGroupId) : null
+  , [settings?.activeGroupId]);
 
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showAddGrade, setShowAddGrade] = useState(false);

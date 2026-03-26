@@ -4,14 +4,18 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 const COLORS = ['#4F46E5', '#06b6d4', '#10b981', '#D97706', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function DonutChart({ data, centerLabel, centerValue, size = 140 }) {
-  if (!data || data.length === 0) return null;
+  const chartData = Array.isArray(data)
+    ? data
+    : Object.entries(data || {}).map(([name, value]) => ({ name, value }));
+
+  if (!chartData.length) return null;
 
   return (
     <div className="relative inline-flex items-center justify-center">
       <ResponsiveContainer width={size} height={size}>
         <PieChart>
           <Pie
-            data={data}
+            data={chartData}
             cx="50%"
             cy="50%"
             innerRadius={size * 0.55}
@@ -19,7 +23,7 @@ export default function DonutChart({ data, centerLabel, centerValue, size = 140 
             paddingAngle={2}
             dataKey="value"
           >
-            {data.map((_, i) => (
+            {chartData.map((_, i) => (
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
             ))}
           </Pie>

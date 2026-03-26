@@ -16,7 +16,7 @@ export default function AttendancePage() {
   const settings = useLiveQuery(() => db.settings.get(1));
   const students = useLiveQuery(() =>
     settings?.activeGroupId ? db.students.where('groupId').equals(settings.activeGroupId).sortBy('number') : []
-  );
+  , [settings?.activeGroupId]);
 
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
@@ -63,7 +63,8 @@ export default function AttendancePage() {
     await Promise.all(toDelete.map(r => db.attendance.delete(r.id)));
     // Add new
     const rows = Object.entries(marks).map(([studentId, status]) => ({
-      studentId: +studentId, date, status, sessionId
+      studentId: +studentId, date, status, sessionId,
+      updatedAt: new Date().toISOString()
     }));
     if (rows.length > 0) await db.attendance.bulkAdd(rows);
     await updateLastSaved();

@@ -1,22 +1,23 @@
 import Dexie from 'dexie';
+import { scheduleAutoSync } from '../lib/autoSync';
 
 export const db = new Dexie('CuadernoAulaDB');
 
 db.version(1).stores({
-  students:        '++id, name, surname, number, email, groupId, birthDate, isRepeater, photo, pendingSubjects, observations',
-  learningOutcomes: '++id, code, description, weight, moduleId, evaluation',
-  criteria:         '++id, code, description, raId',
-  instruments:      '++id, name, date, evaluation, weight, moduleId, groupId, type, counts',
-  instrument_criteria: '++id, instrumentId, criterionId',
-  grades:           '++id, studentId, instrumentId, criterionId, value, date',
-  settings:         'id, schoolName, teacherName, course, activeModuleId, activeGroupId, logo, minGrade, maxGrade, decimals, darkMode, lastSaved',
-  attendance:       '++id, studentId, date, status, sessionId',
-  sessions:         '++id, date, title, content, tasks, evidence, incidents, groupId, moduleId',
-  units:            '++id, number, title, moduleId',
-  modules:          '++id, code, name, examsWeight, projectsWeight, obsWeight, model, groupId, hours, color, shortName',
-  groups:           '++id, name, stage, year, evalCount',
-  suggestions:      '++id, content, category, date, moduleId, status',
-  workplace_logs:   '++id, studentId, date, hours, activity, moduleId'
+  students:        '++id, name, surname, number, email, groupId, birthDate, isRepeater, photo, pendingSubjects, observations, updatedAt',
+  learningOutcomes: '++id, code, description, weight, moduleId, evaluation, updatedAt',
+  criteria:         '++id, code, description, raId, updatedAt',
+  instruments:      '++id, name, date, evaluation, weight, moduleId, groupId, type, counts, updatedAt',
+  instrument_criteria: '++id, instrumentId, criterionId, updatedAt',
+  grades:           '++id, studentId, instrumentId, criterionId, value, date, updatedAt',
+  settings:         'id, schoolName, teacherName, course, activeModuleId, activeGroupId, logo, minGrade, maxGrade, decimals, darkMode, lastSaved, syncStatus, syncMessage, lastSyncedAt, updatedAt',
+  attendance:       '++id, studentId, date, status, sessionId, updatedAt',
+  sessions:         '++id, date, title, content, tasks, evidence, incidents, groupId, moduleId, updatedAt',
+  units:            '++id, number, title, moduleId, updatedAt',
+  modules:          '++id, code, name, examsWeight, projectsWeight, obsWeight, model, groupId, hours, color, shortName, updatedAt',
+  groups:           '++id, name, stage, year, evalCount, updatedAt',
+  suggestions:      '++id, content, category, date, moduleId, status, updatedAt',
+  workplace_logs:   '++id, studentId, date, hours, activity, moduleId, updatedAt'
 });
 
 export const seedDatabase = async () => {
@@ -87,9 +88,18 @@ export const seedDatabase = async () => {
     maxGrade: 10,
     decimals: 2,
     darkMode: false,
-    lastSaved: new Date().toISOString()
+    lastSaved: new Date().toISOString(),
+    syncStatus: 'idle',
+    syncMessage: 'Sin sincronizar',
+    lastSyncedAt: null
   });
 };
 
-export const updateLastSaved = () =>
-  db.settings.update(1, { lastSaved: new Date().toISOString() });
+export const updateLastSaved = async () => {
+  await db.settings.update(1, {
+    lastSaved: new Date().toISOString(),
+    syncStatus: 'pending',
+    syncMessage: 'Cambios pendientes de sincronizar',
+  });
+  scheduleAutoSync();
+};

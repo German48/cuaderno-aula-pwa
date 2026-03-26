@@ -6,6 +6,7 @@ import Modal from '../components/ui/Modal';
 
 export default function CurriculumPage() {
   const [tab, setTab] = useState('modules');
+  const [filterModuleId, setFilterModuleId] = useState('all');
   const groups = useLiveQuery(() => db.groups.toArray()) || [];
   const modules = useLiveQuery(() => db.modules.toArray()) || [];
   const ras = useLiveQuery(() => db.learningOutcomes.toArray()) || [];
@@ -15,9 +16,11 @@ export default function CurriculumPage() {
   const [editingMod, setEditingMod] = useState(null);
   const [editingRA, setEditingRA] = useState(null);
   const [editingCE, setEditingCE] = useState(null);
+  const [editingUD, setEditingUD] = useState(null);
   const [formMod, setFormMod] = useState({ code: '', name: '', shortName: '', color: '#4F46E5', examsWeight: 30, projectsWeight: 70, obsWeight: 0, groupId: null });
   const [formRA, setFormRA] = useState({ code: '', description: '', weight: 0, evaluation: '1', moduleId: null });
   const [formCE, setFormCE] = useState({ code: '', description: '', raId: null });
+  const [formUD, setFormUD] = useState({ number: 1, title: '', moduleId: null });
 
   const saveMod = async () => {
     if (editingMod?.id) {
@@ -49,12 +52,36 @@ export default function CurriculumPage() {
     setEditingCE(null);
   };
 
+  const saveUD = async () => {
+    if (editingUD?.id) {
+      await db.units.update(editingUD.id, formUD);
+    } else {
+      await db.units.add(formUD);
+    }
+    await updateLastSaved();
+    setEditingUD(null);
+  };
+
   const tabs = [
     { key: 'modules', label: 'Módulos' },
     { key: 'ras', label: 'RA' },
     { key: 'ces', label: 'CE' },
     { key: 'units', label: 'UD' },
   ];
+
+  const moduleMap = Object.fromEntries(modules.map(m => [m.id, m]));
+  const raMap = Object.fromEntries(ras.map(r => [r.id, r]));
+
+  const filteredModules = [...modules].sort((a, b) => (a.shortName || a.name || '').localeCompare(b.shortName || b.name || ''));
+  const filteredRAs = [...ras]
+    .filter(r => filterModuleId === 'all' ? true : r.moduleId === +filterModuleId)
+    .sort((a, b) => (a.code || '').localeCompare(b.code || '', 'es', { numeric: true }));
+  const filteredCEs = [...ces]
+    .filter(c => filterModuleId === 'all' ? true : raMap[c.raId]?.moduleId === +filterModuleId)
+    .sort((a, b) => (a.code || '').localeCompare(b.code || '', 'es', { numeric: true }));
+  const filteredUDs = [...units]
+    .filter(u => filterModuleId === 'all' ? true : u.moduleId === +filterModuleId)
+    .sort((a, b) => (a.number || 0) - (b.number || 0));
 
   return (
     <div className="p-4 space-y-4">
@@ -68,10 +95,17 @@ export default function CurriculumPage() {
         ))}
       </div>
 
+      {tab !== 'modules' && (
+        <select className="input" value={filterModuleId} onChange={e => setFilterModuleId(e.target.value)}>
+          <option value="all">Todos los módulos</option>
+          {filteredModules.map(m => <option key={m.id} value={m.id}>{m.shortName} — {m.name}</option>)}
+        </select>
+      )}
+
       {tab === 'modules' && (
         <div className="space-y-3">
           <button onClick={() => { setFormMod({ code: '', name: '', shortName: '', color: '#4F46E5', examsWeight: 30, projectsWeight: 70, obsWeight: 0, groupId: groups[0]?.id }); setEditingMod({}); }} className="btn btn-primary text-sm"><Plus size={14} /> Módulo</button>
-          {modules.map(m => (
+          {filteredModules.map(m => (
             <div key={m.id} className="card p-4 flex items-center gap-3">
               <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: m.color }} />
               <div className="flex-1 min-w-0">
@@ -88,11 +122,12 @@ export default function CurriculumPage() {
       {tab === 'ras' && (
         <div className="space-y-3">
           <button onClick={() => { setFormRA({ code: '', description: '', weight: 0, evaluation: '1', moduleId: modules[0]?.id }); setEditingRA({}); }} className="btn btn-primary text-sm"><Plus size={14} /> RA</button>
-          {ras.map(r => (
+          {filteredRAs.map(r => (
             <div key={r.id} className="card p-4">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-semibold text-[var(--color-text)]">{r.code} <span className="text-xs text-[var(--color-text-muted)]">(peso {r.weight}%)</span></p>
+                  <p className="text-xs text-[var(--color-text-muted)] mb-1">{moduleMap[r.moduleId]?.shortName || 'Sin módulo'}</p>
                   <p className="text-sm text-[var(--color-text-muted)]">{r.description}</p>
                 </div>
                 <div className="flex gap-1">
@@ -108,11 +143,12 @@ export default function CurriculumPage() {
       {tab === 'ces' && (
         <div className="space-y-3">
           <button onClick={() => { setFormCE({ code: '', description: '', raId: ras[0]?.id }); setEditingCE({}); }} className="btn btn-primary text-sm"><Plus size={14} /> CE</button>
-          {ces.map(c => (
+          {filteredCEs.map(c => (
             <div key={c.id} className="card p-4">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-medium text-[var(--color-text)]">{c.code}</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mb-1">{raMap[c.raId]?.code || 'Sin RA'} · {moduleMap[raMap[c.raId]?.moduleId]?.shortName || 'Sin módulo'}</p>
                   <p className="text-sm text-[var(--color-text-muted)]">{c.description}</p>
                 </div>
                 <div className="flex gap-1">
@@ -127,10 +163,19 @@ export default function CurriculumPage() {
 
       {tab === 'units' && (
         <div className="space-y-3">
-          {units.map(u => (
+          <button onClick={() => { setFormUD({ number: (units?.length || 0) + 1, title: '', moduleId: modules[0]?.id || null }); setEditingUD({}); }} className="btn btn-primary text-sm"><Plus size={14} /> UD</button>
+          {filteredUDs.map(u => (
             <div key={u.id} className="card p-4">
-              <p className="font-medium text-[var(--color-text)]">UD{u.number}: {u.title}</p>
-              <p className="text-xs text-[var(--color-text-muted)]">Módulo #{u.moduleId}</p>
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-medium text-[var(--color-text)]">UD{u.number}: {u.title}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{moduleMap[u.moduleId]?.shortName || 'Sin módulo'} — {moduleMap[u.moduleId]?.name || 'Módulo no encontrado'}</p>
+                </div>
+                <div className="flex gap-1">
+                  <button onClick={() => { setFormUD(u); setEditingUD(u); }} className="btn btn-ghost p-1"><Edit2 size={14} /></button>
+                  <button onClick={async () => { await db.units.delete(u.id); await updateLastSaved(); }} className="btn btn-ghost text-red-500 p-1"><Trash2 size={14} /></button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -138,8 +183,8 @@ export default function CurriculumPage() {
 
       {/* Modals */}
       {editingMod !== null && (
-        <Modal onClose={() => setEditingMod(null)} title={editingMod?.id ? 'Editar Módulo' : 'Nuevo Módulo'}>
-          <div className="space-y-3">
+        <Modal isOpen={true} onClose={() => setEditingMod(null)} title={editingMod?.id ? 'Editar Módulo' : 'Nuevo Módulo'}>
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); saveMod(); }}>
             <input className="input" placeholder="Código" value={formMod.code} onChange={e => setFormMod({ ...formMod, code: e.target.value })} />
             <input className="input" placeholder="Nombre completo" value={formMod.name} onChange={e => setFormMod({ ...formMod, name: e.target.value })} />
             <input className="input" placeholder="Nombre corto (3-4 letras)" value={formMod.shortName} onChange={e => setFormMod({ ...formMod, shortName: e.target.value })} />
@@ -157,16 +202,16 @@ export default function CurriculumPage() {
               {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
             <div className="flex gap-2 justify-end pt-2">
-              <button onClick={() => setEditingMod(null)} className="btn btn-secondary">Cancelar</button>
-              <button onClick={saveMod} className="btn btn-primary">Guardar</button>
+              <button type="button" onClick={() => setEditingMod(null)} className="btn btn-secondary">Cancelar</button>
+              <button type="submit" className="btn btn-primary">Guardar</button>
             </div>
-          </div>
+          </form>
         </Modal>
       )}
 
       {editingRA !== null && (
-        <Modal onClose={() => setEditingRA(null)} title={editingRA?.id ? 'Editar RA' : 'Nuevo RA'}>
-          <div className="space-y-3">
+        <Modal isOpen={true} onClose={() => setEditingRA(null)} title={editingRA?.id ? 'Editar RA' : 'Nuevo RA'}>
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); saveRA(); }}>
             <input className="input" placeholder="Código (ej: RA 1)" value={formRA.code} onChange={e => setFormRA({ ...formRA, code: e.target.value })} />
             <textarea className="input" placeholder="Descripción" rows={3} value={formRA.description} onChange={e => setFormRA({ ...formRA, description: e.target.value })} />
             <input className="input" type="number" placeholder="Peso (%)" value={formRA.weight} onChange={e => setFormRA({ ...formRA, weight: +e.target.value })} />
@@ -175,16 +220,16 @@ export default function CurriculumPage() {
               {modules.map(m => <option key={m.id} value={m.id}>{m.shortName} — {m.name}</option>)}
             </select>
             <div className="flex gap-2 justify-end pt-2">
-              <button onClick={() => setEditingRA(null)} className="btn btn-secondary">Cancelar</button>
-              <button onClick={saveRA} className="btn btn-primary">Guardar</button>
+              <button type="button" onClick={() => setEditingRA(null)} className="btn btn-secondary">Cancelar</button>
+              <button type="submit" className="btn btn-primary">Guardar</button>
             </div>
-          </div>
+          </form>
         </Modal>
       )}
 
       {editingCE !== null && (
-        <Modal onClose={() => setEditingCE(null)} title={editingCE?.id ? 'Editar CE' : 'Nuevo CE'}>
-          <div className="space-y-3">
+        <Modal isOpen={true} onClose={() => setEditingCE(null)} title={editingCE?.id ? 'Editar CE' : 'Nuevo CE'}>
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); saveCE(); }}>
             <input className="input" placeholder="Código (ej: CE 1.a)" value={formCE.code} onChange={e => setFormCE({ ...formCE, code: e.target.value })} />
             <textarea className="input" placeholder="Descripción" rows={3} value={formCE.description} onChange={e => setFormCE({ ...formCE, description: e.target.value })} />
             <select className="input" value={formCE.raId || ''} onChange={e => setFormCE({ ...formCE, raId: +e.target.value || null })}>
@@ -192,10 +237,27 @@ export default function CurriculumPage() {
               {ras.map(r => <option key={r.id} value={r.id}>{r.code} — {r.description?.slice(0, 50)}</option>)}
             </select>
             <div className="flex gap-2 justify-end pt-2">
-              <button onClick={() => setEditingCE(null)} className="btn btn-secondary">Cancelar</button>
-              <button onClick={saveCE} className="btn btn-primary">Guardar</button>
+              <button type="button" onClick={() => setEditingCE(null)} className="btn btn-secondary">Cancelar</button>
+              <button type="submit" className="btn btn-primary">Guardar</button>
             </div>
-          </div>
+          </form>
+        </Modal>
+      )}
+
+      {editingUD !== null && (
+        <Modal isOpen={true} onClose={() => setEditingUD(null)} title={editingUD?.id ? 'Editar UD' : 'Nueva UD'}>
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); saveUD(); }}>
+            <input className="input" type="number" min="1" placeholder="Número" value={formUD.number} onChange={e => setFormUD({ ...formUD, number: +e.target.value })} />
+            <input className="input" placeholder="Título de la unidad" value={formUD.title} onChange={e => setFormUD({ ...formUD, title: e.target.value })} />
+            <select className="input" value={formUD.moduleId || ''} onChange={e => setFormUD({ ...formUD, moduleId: +e.target.value || null })}>
+              <option value="">Seleccionar módulo</option>
+              {modules.map(m => <option key={m.id} value={m.id}>{m.shortName} — {m.name}</option>)}
+            </select>
+            <div className="flex gap-2 justify-end pt-2">
+              <button type="button" onClick={() => setEditingUD(null)} className="btn btn-secondary">Cancelar</button>
+              <button type="submit" className="btn btn-primary">Guardar</button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>
