@@ -79,57 +79,64 @@ export default function DashboardPage() {
         </p>
       </motion.div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard icon={Users} label="Alumnos" value={totalStudents} color="#4F46E5" />
-        <StatCard icon={Award} label="Media Global" value={avgGrade} color="#D97706" sublabel={module?.shortName} />
-        <StatCard
-          icon={ClipboardCheck}
-          label="Asistencia Hoy"
-          value={`${attendanceRate}%`}
-          color="#059669"
-        />
-        <StatCard
-          icon={Calendar}
-          label="Sesiones"
-          value={sessions?.length || 0}
-          color="#06b6d4"
-        />
-      </div>
+      {/* Stats + Attendance Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
+        <div className="lg:col-span-2 grid grid-cols-2 gap-3">
+          <StatCard icon={Users} label="Alumnos" value={totalStudents} color="#4F46E5" />
+          <StatCard icon={Award} label="Media Global" value={avgGrade} color="#D97706" sublabel={module?.shortName} />
+          <StatCard
+            icon={ClipboardCheck}
+            label="Asistencia Hoy"
+            value={`${attendanceRate}%`}
+            color="#059669"
+          />
+          <StatCard
+            icon={Calendar}
+            label="Sesiones"
+            value={sessions?.length || 0}
+            color="#06b6d4"
+          />
+        </div>
 
-      {/* Attendance Donut */}
-      {totalStudents > 0 && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="card p-4 flex items-center gap-6">
-          <DonutChart data={donutData} centerValue={`${attendanceRate}%`} centerLabel="hoy" size={110} />
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
-              <span className="text-sm text-[var(--color-text)]">Presentes: {presentToday}</span>
+        {totalStudents > 0 && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="card p-4 space-y-3 lg:min-h-[220px]">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sm text-[var(--color-text)]">Resumen de asistencia</h3>
+              <span className="text-xs text-[var(--color-text-muted)]">Hoy</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-red-400 inline-block" />
-              <span className="text-sm text-[var(--color-text)]">Ausentes: {absentToday}</span>
+            <div className="flex items-center gap-4">
+              <DonutChart data={donutData} centerValue={`${attendanceRate}%`} centerLabel="hoy" size={100} />
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
+                  <span className="text-sm text-[var(--color-text)]">Presentes: {presentToday}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-red-400 inline-block" />
+                  <span className="text-sm text-[var(--color-text)]">Ausentes: {absentToday}</span>
+                </div>
+                {delayedToday > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" />
+                    <span className="text-sm text-[var(--color-text)]">Retrasos: {delayedToday}</span>
+                  </div>
+                ) : null}
+                {justifiedToday > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-sky-400 inline-block" />
+                    <span className="text-sm text-[var(--color-text)]">Justificadas: {justifiedToday}</span>
+                  </div>
+                ) : null}
+              </div>
             </div>
-            {delayedToday > 0 ? (
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" />
-                <span className="text-sm text-[var(--color-text)]">Retrasos: {delayedToday}</span>
-              </div>
-            ) : null}
-            {justifiedToday > 0 ? (
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-sky-400 inline-block" />
-                <span className="text-sm text-[var(--color-text)]">Justificadas: {justifiedToday}</span>
-              </div>
-            ) : null}
             <p className="text-xs text-[var(--color-text-muted)]">{recordedToday > 0 ? `${recordedToday} registros hoy` : 'Aún no se ha pasado lista hoy'}</p>
-            <Link to="/attendance" className="btn btn-ghost text-xs mt-2 p-1.5">
+            <Link to="/attendance" className="btn btn-ghost text-xs p-1.5 self-start">
               Pasar asistencia <ChevronRight size={12} />
             </Link>
-          </div>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
+      </div>
 
       {/* Last Session */}
       {lastSession && (
