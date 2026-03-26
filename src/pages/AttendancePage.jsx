@@ -6,10 +6,10 @@ import DonutChart from '../components/ui/DonutChart';
 import Badge from '../components/ui/Badge';
 
 const STATUS_CONFIG = {
-  P: { label: 'Presente', color: 'bg-green-500', textColor: 'text-white', icon: Check },
-  A: { label: 'Ausente', color: 'bg-red-500', textColor: 'text-white', icon: X },
-  R: { label: 'Retraso', color: 'bg-amber-500', textColor: 'text-white', icon: Clock },
-  J: { label: 'Justificado', color: 'bg-blue-500', textColor: 'text-white', icon: FileText },
+  present: { label: 'Presente', color: 'bg-green-500', textColor: 'text-white', icon: Check },
+  absent: { label: 'Ausente', color: 'bg-red-500', textColor: 'text-white', icon: X },
+  delayed: { label: 'Retraso', color: 'bg-amber-500', textColor: 'text-white', icon: Clock },
+  justified: { label: 'Justificado', color: 'bg-blue-500', textColor: 'text-white', icon: FileText },
 };
 
 export default function AttendancePage() {
@@ -25,11 +25,11 @@ export default function AttendancePage() {
 
   // Load existing attendance for this date+group
   const existing = useLiveQuery(async () => {
-    if (!settings?.activeGroupId || !date) return [];
-    return db.attendance.where({ date, studentId: db._students }).and(r =>
-      students?.find(s => s.id === r.studentId)
-    ).toArray();
-  }, [date, settings?.activeGroupId]);
+    if (!settings?.activeGroupId || !date || !students?.length) return [];
+    const studentIds = new Set(students.map(s => s.id));
+    const rows = await db.attendance.where('date').equals(date).toArray();
+    return rows.filter(r => studentIds.has(r.studentId));
+  }, [date, settings?.activeGroupId, students]);
 
   // Pre-fill from existing
   React.useEffect(() => {
@@ -51,17 +51,17 @@ export default function AttendancePage() {
   const counts = Object.values(marks).reduce((acc, s) => {
     acc[s] = (acc[s] || 0) + 1;
     return acc;
-  }, { P: 0, A: 0, R: 0, J: 0 });
+  }, { present: 0, absent: 0, delayed: 0, justified: 0 });
 
   const total = Object.values(marks).length;
-  const presentPct = total > 0 ? Math.round((counts.P + counts.R) / total * 100) : 0;
+  const presentPct = total > 0 ? Math.round(((counts.present || 0) + (counts.delayed || 0)) / total * 100) : 0;
 
   const saveSession = async () => {
-    const sessionId = Date.now();
-    // Delete existing for this date
-    const toDelete = await db.attendance.filter(r => r.date === date && students?.find(s => s.id === r.studentId)).toArray();
-    await Promise.all(toDelete.map(r => db.attendance.delete(r.id)));
-    // Add new
+    const existingSessionId = existing?.[0]?.sessionId;
+    const sessionId = existingSessionId || Date.now();
+    const studentIds = new Set((students || []).map(s => s.id));
+    const toDelete = await db.attendance.where('date').equals(date).toArray();
+    await Promise.all(toDelete.filter(r => studentIds.has(r.studentId)).map(r => db.attendance.delete(r.id)));
     const rows = Object.entries(marks).map(([studentId, status]) => ({
       studentId: +studentId, date, status, sessionId,
       updatedAt: new Date().toISOString()
