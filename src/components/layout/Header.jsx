@@ -10,7 +10,8 @@ export default function Header() {
   const modules = useLiveQuery(() => db.modules.toArray()) || [];
   const [showGroupSelect, setShowGroupSelect] = useState(false);
   const [showModuleSelect, setShowModuleSelect] = useState(false);
-  const { canInstall, install } = useInstallPrompt();
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const { canInstall, install, installHint } = useInstallPrompt();
 
   const activeGroup = groups.find(g => g.id === settings?.activeGroupId);
   const activeModule = modules.find(m => m.id === settings?.activeModuleId);
@@ -85,6 +86,22 @@ export default function Header() {
           <Download size={16} />
           <span className="text-[11px] font-medium hidden sm:inline">Instalar</span>
         </button>
+      ) : (
+        <button
+          onClick={() => setShowInstallHelp(v => !v)}
+          className="btn btn-ghost px-2 py-1.5 gap-2 text-slate-500"
+          title="Cómo instalar la app"
+        >
+          <Download size={16} />
+          <span className="text-[11px] font-medium hidden sm:inline">Instalar</span>
+        </button>
+      )}
+
+      {showInstallHelp ? (
+        <div className="absolute top-14 right-4 z-50 max-w-xs rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-xl text-xs text-[var(--color-text)]">
+          <p className="font-semibold mb-1">Instalar app</p>
+          <p>{installHint}</p>
+        </div>
       ) : null}
 
       {/* Selector Grupo */}

@@ -1,11 +1,11 @@
-import { db, updateLastSaved } from '../db';
+import { db } from '../db';
 import { supabase, supabaseEnabled, SUPABASE_TABLES } from './supabase';
 
 async function setSyncState(syncStatus, syncMessage) {
   await db.settings.update(1, {
     syncStatus,
     syncMessage,
-    lastSyncedAt: syncStatus === 'ok' ? new Date().toISOString() : undefined,
+    ...(syncStatus === 'ok' ? { lastSyncedAt: new Date().toISOString() } : {}),
   });
 }
 
@@ -33,7 +33,6 @@ export async function pushAllToSupabase(onProgress) {
       }
     }
 
-    await updateLastSaved();
     await db.settings.update(1, {
       syncStatus: 'ok',
       syncMessage: 'Sincronizado correctamente con Supabase',
