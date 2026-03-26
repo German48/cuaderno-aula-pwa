@@ -52,12 +52,18 @@ export default function DashboardPage() {
   const today = new Date().toISOString().split('T')[0];
   const todayAttendance = attendance?.filter(r => r.date === today) || [];
   const presentToday = todayAttendance.filter(r => r.status === 'present').length;
-  const attendanceRate = totalStudents > 0 ? Math.round((presentToday / totalStudents) * 100) : 0;
+  const absentToday = todayAttendance.filter(r => r.status === 'absent').length;
+  const delayedToday = todayAttendance.filter(r => r.status === 'delayed').length;
+  const justifiedToday = todayAttendance.filter(r => r.status === 'justified').length;
+  const recordedToday = todayAttendance.length;
+  const attendanceRate = recordedToday > 0 ? Math.round((presentToday / recordedToday) * 100) : 0;
 
   const donutData = [
     { name: 'Presente', value: presentToday },
-    { name: 'Ausente', value: totalStudents - presentToday },
-  ];
+    { name: 'Ausente', value: absentToday },
+    { name: 'Retraso', value: delayedToday },
+    { name: 'Justificada', value: justifiedToday },
+  ].filter(x => x.value > 0);
 
   const lastSession = sessions?.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 
@@ -103,8 +109,21 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-red-400 inline-block" />
-              <span className="text-sm text-[var(--color-text)]">Ausentes: {totalStudents - presentToday}</span>
+              <span className="text-sm text-[var(--color-text)]">Ausentes: {absentToday}</span>
             </div>
+            {delayedToday > 0 ? (
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" />
+                <span className="text-sm text-[var(--color-text)]">Retrasos: {delayedToday}</span>
+              </div>
+            ) : null}
+            {justifiedToday > 0 ? (
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-sky-400 inline-block" />
+                <span className="text-sm text-[var(--color-text)]">Justificadas: {justifiedToday}</span>
+              </div>
+            ) : null}
+            <p className="text-xs text-[var(--color-text-muted)]">{recordedToday > 0 ? `${recordedToday} registros hoy` : 'Aún no se ha pasado lista hoy'}</p>
             <Link to="/attendance" className="btn btn-ghost text-xs mt-2 p-1.5">
               Pasar asistencia <ChevronRight size={12} />
             </Link>
